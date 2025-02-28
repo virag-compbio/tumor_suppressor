@@ -1,52 +1,52 @@
-import sys, os, subprocess
-
-def run_subprocess(command):
-
-    command_list = command.split()
-    command_return = subprocess.run(command_list, capture_output = True, text = True)
-    assert command_return.returncode == 0, f'Aborting, the command {command} could not be completed. Here are the messages\n{command_return.stderr}\n\n{command_return.stdout}\n\n'
+import sys
+import os
+from pathlib import Path
+import csv
+from openpyxl import Workbook
 
 def write_results(header, results_list, output_file):
+    ''' Writes data to an Excel file using openpyxl. '''
+    wb = Workbook()
+    ws = wb.active
 
-    with open("temp.txt", 'w') as FOR:
-        for line in header:
-            FOR.write(line)
-        for line in results_list:
-            FOR.write(line)
+    # Write header
+    for row in header:
+        ws.append(row)
 
-    ssconvert_call = f'ssconvert temp.txt {output_file}'
-    run_subprocess(ssconvert_call)    
+    # Write results
+    for row in results_list:
+        ws.append(row)
 
+    wb.save(output_file)
+
+def process_files(input_dir, output_p53, output_pten):
+    ''' Processes files in the input directory and writes categorized results to Excel '''
+    input_dir = Path(input_dir)
+    output_p53 = Path(output_p53)
+    output_pten = Path(output_pten)
+
+    output_p53.mkdir(parents=True, exist_ok=True)
+    output_pten.mkdir(parents=True, exist_ok=True)
+
+    for input_file in input_dir.glob("*.txt"):
+        species = input_file.stem  # Get filename without extension
+
+        with input_file.open('r', newline='') as fi:
+            reader = csv.reader(fi, delimiter='\t')  # Adjust delimiter as needed
+            data = list(reader)
+
+        header = data[:5]  # Extract header
+        results_p53 = [row for row in data if 'P53' in row]
+        results_pten = [row for row in data if 'PTEN' in row]
+
+        if results_p53:
+            write_results(header, results_p53, output_p53 / f"{species}.xlsx")
+        if results_pten:
+            write_results(header, results_pten, output_pten / f"{species}.xlsx")
 
 if __name__ == '__main__':
+    input_dir = sys.argv[1]
+    output_p53 = sys.argv[2]
+    output_pten = sys.argv[3]
 
-    input_dir   = sys.argv[1]
-    output_P53  = sys.argv[2]
-    output_PTEN = sys.argv[3]
-
-    os.makedirs(output_P53, exist_ok = True)
-    os.makedirs(output_PTEN, exist_ok = True)
-
-    files_list = os.listdir(input_dir)
-    for species in files_list:
-
-        input_file = os.path.join(input_dir, species)
-        species = species.replace('.txt','')
-
-        with open(input_file, 'r') as FI:
-            input_file_list = FI.readlines()
-
-        header = input_file_list[0:5]
-
-        results_p53, results_pten = list(), list()
-        for line in input_file_list:
-            if 'P53' in line:
-                results_p53.append(line)
-            elif 'PTEN' in line:
-                results_pten.append(line)
-
-        p53_output = os.path.join(output_P53, f'{species}.xlsx')
-        pten_output = os.path.join(output_PTEN, f'{species}.xlsx')
-        write_results(header, results_p53, p53_output)
-        write_results(header, results_pten, pten_output)
-
+    process_files(input_dir, output_p53, output_pten)
