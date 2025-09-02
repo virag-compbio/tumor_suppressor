@@ -27,3 +27,7 @@ More specifically, do the following in your terminal
 ```
 pip3.11 install biopython --user
 ```
+
+#### TODO:
+1. Add a graphic showing the workflow.  
+2. Add links to the twoBit/fasta files.   
